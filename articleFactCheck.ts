@@ -92,6 +92,7 @@ export async function factCheckArticle(input: FactCheckInput, requestKey?: strin
       }
     } catch { warnings.push('계약 공시 조회에 실패했습니다. 인증키·호출 한도·네트워크를 확인해 주세요.'); contractClaims.forEach(c=>{if(!c.message)c.message='계약 공시 원문을 확인하지 못했습니다.';}); }
   }
+  for (const c of claims) if (c.internal && c.checkType!=='internal') c.message=`${c.message} · 기사 내부 계산: ${c.internal.text} (${c.internal.ok?'기사 수치와 일치':'기사 수치와 불일치'})`;
   const companyMap=new Map<string,{name:string;total:number;matched:number;mismatched:number;unverified:number}>();
   for(const c of claims.filter(x=>!isReferenceClaim(x))){const key=c.company||'기업 미확인';const row=companyMap.get(key)??{name:key,total:0,matched:0,mismatched:0,unverified:0};row.total++;if(c.status==='MATCH')row.matched++;else if(c.status==='MISMATCH')row.mismatched++;else row.unverified++;companyMap.set(key,row);}
   // 기사에 등장했지만 수치가 없는 기업도 목록에 남겨 누락을 눈으로 확인할 수 있게 합니다.

@@ -11,7 +11,8 @@ const metrics: Array<[RegExp, string, string]> = [
   [/영업(?:활동)?\s*현금흐름/g, 'operatingCashFlow', '영업현금흐름'], [/투자(?:활동)?\s*현금흐름/g, 'investmentCashFlow', '투자현금흐름'], [/재무(?:활동)?\s*현금흐름/g, 'financingCashFlow', '재무현금흐름'], [/잉여현금흐름|FCF/gi, 'freeCashFlow', 'FCF'],
   [/설비투자|CAPEX/gi, 'capex', 'CAPEX'], [/EBITDA/gi, 'ebitda', 'EBITDA'],
   [/현금\s*(?:및|과)\s*현금성자산|현금성자산/g, '현금및현금성자산', '현금및현금성자산'],
-  [/매출채권/g,'매출채권','매출채권'], [/재고자산/g,'재고자산','재고자산'],
+  [/매출채권/g,'매출채권','매출채권'], [/재고자산/g,'재고자산','재고자산'], [/매입채무/g,'매입채무','매입채무'],
+  [/선수금\s*(?:[·ㆍ,]|및)\s*계약부채/g,'skip:선수금·계약부채','선수금·계약부채'], [/계약부채/g,'계약부채','계약부채'],
   [/비유동자산/g,'비유동자산','비유동자산'], [/유동자산/g,'유동자산','유동자산'],
   [/비유동부채/g,'비유동부채','비유동부채'], [/유동부채/g,'유동부채','유동부채'],
   [/자산총계|총자산/g, '자산총계', '자산총계'], [/부채총계|총부채/g, '부채총계', '부채총계'],
@@ -123,6 +124,7 @@ export function extractArticleClaims(rawInput: FactCheckInput, companyNames: str
   const baseBasis: 'CFS'|'OFS'=/별도|개별/.test(lead)?'OFS':input.basis;
   if(input.automatic){input.year=baseYear;input.period=basePeriod;input.mode=baseMode;input.basis=baseBasis;}
   let segIdx = -1, lastMetricSeg = -9;
+  let lastCompareLabel: 'same'|'end'|undefined;
   const labeledClaimIds = new Set<number>(); // ‘전년동기·지난해 말’ 라벨로 기간이 정해진 수치는 다음 문장의 기본 기간으로 이어가지 않습니다.
   let lastMetric: {metric:string;label:string;text:string;at:number;end:number;year?:number;period?:FactClaim['period'];mode?:FactClaim['mode'];basis?:FactClaim['basis']}|undefined;
   let comparisonRangeYears: [number,number] | undefined;
@@ -176,8 +178,12 @@ export function extractArticleClaims(rawInput: FactCheckInput, companyNames: str
         return /^(?:의|인|규모의|수준의|가량의|에 달하는|정도의)?$/.test(between) || (h.metric==='contract' && between.length<=3);
       });
       // 지표 이어받기는 같은 문장이거나 바로 앞 문장에서 ‘이는·전년·동기’로 이어질 때만 허용합니다(다른 주제 수치에 엉뚱한 지표가 붙는 것을 방지).
+      let skipMetric = false;
+      if (hit && hit.metric.startsWith('skip:')) { hit = undefined; skipMetric = true; } // 선수금+계약부채 합산 등은 한 계정으로 대조하지 않음
       const anaphoric = /^\s*(?:이는|이\s*같은|이러한|이로|해당|같은|전년|지난해|작년|올해|동기)/.test(paragraph);
-      if(!hit && lastMetric && (lastMetricSeg===segIdx || (lastMetricSeg===segIdx-1 && anaphoric)) && (!/원$/.test(raw) || (anaphoric && new RegExp(`${LABEL_SAME_SRC}|${LABEL_END_SRC}`).test(paragraph.slice(Math.max(0,pos-30),pos)))) && /이는|전년|지난해|작년|올해|동기/.test(paragraph)) hit=lastMetric;
+      const ellipsis = lastMetricSeg===segIdx && /같은\s*기간|이\s*기간|역시|마찬가지/.test(paragraph.slice(Math.max(0,pos-40),pos));
+      if(!hit && !skipMetric && lastMetric && ellipsis) hit=lastMetric;
+      if(!hit && !skipMetric && lastMetric && (lastMetricSeg===segIdx || (lastMetricSeg===segIdx-1 && anaphoric)) && (!/원$/.test(raw) || (anaphoric && new RegExp(`${LABEL_SAME_SRC}|${LABEL_END_SRC}`).test(paragraph.slice(Math.max(0,pos-30),pos)))) && /이는|전년|지난해|작년|올해|동기/.test(paragraph)) hit=lastMetric;
       if(!hit && lastMetric?.metric==='operatingCashFlow' && /유출액|순유출|현금 유출/.test(paragraph.slice(0,pos+raw.length))) hit=lastMetric;
       if(!hit && lastMetric?.metric==='backlog' && /(?:작년|지난해|전년)\s*말/.test(paragraph)) hit=lastMetric;
       if(!hit && lastMetric?.metric==='borrowings' && /빌리고|차입이 늘|갚는/.test(paragraph.slice(0,pos+raw.length))) hit=lastMetric;
@@ -265,7 +271,12 @@ export function extractArticleClaims(rawInput: FactCheckInput, companyNames: str
       const prevNumForLabel = nums.filter(n=>n.index!+n[0].length<=pos).at(-1);
       const labelRegion = paragraph.slice(Math.max(prevNumForLabel ? prevNumForLabel.index!+prevNumForLabel[0].length : 0, pos-30), pos);
       const labSame=[...labelRegion.matchAll(new RegExp(LABEL_SAME_SRC,'g'))].at(-1), labEnd=[...labelRegion.matchAll(new RegExp(LABEL_END_SRC,'g'))].at(-1);
-      const amountLabel = /원$/.test(raw) ? (labSame && labEnd ? (labSame.index!>labEnd.index! ? 'same' : 'end') : labSame ? 'same' : labEnd ? 'end' : undefined) : undefined;
+      const amountLabelDirect = /원$/.test(raw) ? (labSame && labEnd ? (labSame.index!>labEnd.index! ? 'same' : 'end') : labSame ? 'same' : labEnd ? 'end' : undefined) : undefined;
+      // ‘같은 기간 A에서 B로’: A는 앞서 쓰인 비교 기준(전년동기/지난해 말), B는 현재 기간입니다.
+      const ni0 = nums.findIndex(n=>n.index===pos);
+      const isFromAmount = /원$/.test(raw) && ni0>=0 && ni0<nums.length-1 && /^\s*(?:에서|→|->|⇒)\s*$/.test(paragraph.slice(pos+raw.length, nums[ni0+1].index!));
+      const amountLabel = amountLabelDirect ?? (isFromAmount && /같은\s*기간|이\s*기간/.test(paragraph) ? lastCompareLabel : undefined);
+      if (amountLabelDirect) lastCompareLabel = amountLabelDirect;
       if (amountLabel && inheritedYear) { year = inheritedYear-1; if (amountLabel==='end') { period='annual'; mode='cum'; } else { period=inheritedPeriod; mode=inheritedMode; } }
       const company = effectiveCompany ?? inheritedCompany;
       const companySource: CompanySource = effectiveCompany ? 'sentence' : companyNames.length>1 ? 'carried' : 'single';
@@ -305,14 +316,21 @@ export function extractArticleClaims(rawInput: FactCheckInput, companyNames: str
       let growthLabeled=false;
       if(growth){
         // ‘각각 전년동기(A)·지난해 말(B) 대비 X%·Y% 증가’: 라벨과 증감률을 순서대로 대응시킵니다.
-        const gPcts=nums.filter(n=>/%/.test(n[0]) && !/%p/i.test(n[0]) && new RegExp(GROWTH_WORDS).test(paragraph.slice(n.index!+n[0].length,n.index!+n[0].length+25)));
+        const gAll=nums.filter(n=>/%/.test(n[0]) && !/%p/i.test(n[0]) && new RegExp(GROWTH_WORDS).test(paragraph.slice(n.index!+n[0].length,n.index!+n[0].length+25)));
+        // ‘59.3%·33.1% 증가’처럼 ·, 쉼표, 과로 이어진 증감률만 한 묶음으로 봅니다.
+        const gAt=gAll.findIndex(n=>n.index===pos); let gl=gAt, gr=gAt;
+        if (gAt>=0) { const conn=(a:RegExpMatchArray,b:RegExpMatchArray)=>/^[\s·,、과와및]{0,3}$/.test(paragraph.slice(a.index!+a[0].length,b.index!));
+          while(gl>0 && conn(gAll[gl-1],gAll[gl])) gl--; while(gr<gAll.length-1 && conn(gAll[gr],gAll[gr+1])) gr++; }
+        const gPcts=gAt>=0 ? gAll.slice(gl,gr+1) : gAll;
         const firstPct=gPcts[0]?.index ?? pos;
         const labs=[...paragraph.slice(0,firstPct).matchAll(LABEL_ANY)].filter(l=>firstPct-(l.index!+l[0].length)<=60);
         const gi=gPcts.findIndex(n=>n.index===pos);
         const lab = labs.length>=gPcts.length && gPcts.length>1 ? labs.slice(-gPcts.length)[gi] : labs.at(-1);
-        if(lab && inheritedYear){
+        const labKind: 'same'|'end'|undefined = lab ? (new RegExp(LABEL_END_SRC).test(lab[0]) ? 'end' : 'same') : (/같은\s*기간|이\s*기간/.test(paragraph) ? lastCompareLabel : undefined);
+        if(labKind && inheritedYear){
           growthLabeled=true; claim.year=inheritedYear; claim.period=inheritedPeriod; claim.mode=inheritedMode; claim.periodExplicit=true;
-          claim.comparison = new RegExp(LABEL_END_SRC).test(lab[0]) ? {year:inheritedYear-1,period:'annual',mode:'cum'} : {year:inheritedYear-1,period:inheritedPeriod,mode:inheritedMode};
+          claim.comparison = labKind==='end' ? {year:inheritedYear-1,period:'annual',mode:'cum'} : {year:inheritedYear-1,period:inheritedPeriod,mode:inheritedMode};
+          if (lab) lastCompareLabel = labKind;
         }
       }
       if(growth && !growthLabeled){
@@ -361,6 +379,46 @@ export function extractArticleClaims(rawInput: FactCheckInput, companyNames: str
       claim.valueText = signedText(claim.value, unit, growth);
       claim.basisLabel = input.automatic && reason.includes('기사에서') ? `${company || '기업 미확인'} · 기사 기준 확인 필요` : claimBasis(claim);
       if (amountLabel) labeledClaimIds.add(claim.id);
+      // 기사 내부 산술 검증: 같은 문장 안의 두 금액으로 증감률을 계산해 기사 수치와 비교합니다(공시 대조와 별개).
+      if (growth && claim.metric !== 'contract') {
+        const amts = nums.filter(n=>/원$/.test(n[0])).map(n=>({idx:n.index!, end:n.index!+n[0].length, v:koreanAmount(n[0])})).filter((a):a is {idx:number;end:number;v:number}=>a.v!==null && a.v>0);
+        let pair: {from:number;to:number}|undefined;
+        for (let i=0;i<amts.length-1;i++) {
+          if (/^\s*(?:에서|→|->|⇒)\s*$/.test(paragraph.slice(amts[i].end,amts[i+1].idx))) {
+            const near=(amts[i+1].end<=pos && pos-amts[i+1].end<=40) || (amts[i].idx>=pos+raw.length && amts[i].idx-(pos+raw.length)<=3);
+            if (near) pair={from:amts[i].v,to:amts[i+1].v};
+          }
+        }
+        if (!pair) {
+          const gAll2=nums.filter(n=>/%/.test(n[0]) && !/%p/i.test(n[0]) && new RegExp(GROWTH_WORDS).test(paragraph.slice(n.index!+n[0].length,n.index!+n[0].length+25)));
+          const at2=gAll2.findIndex(n=>n.index===pos); let l2=at2, r2=at2;
+          if (at2>=0) { const conn=(a:RegExpMatchArray,b:RegExpMatchArray)=>/^[\s·,、과와및]{0,3}$/.test(paragraph.slice(a.index!+a[0].length,b.index!));
+            while(l2>0 && conn(gAll2[l2-1],gAll2[l2])) l2--; while(r2<gAll2.length-1 && conn(gAll2[r2],gAll2[r2+1])) r2++; }
+          const grp=at2>=0 ? gAll2.slice(l2,r2+1) : [];
+          const first2=grp[0]?.index ?? pos, k=grp.length;
+          const before2=amts.filter(a=>a.end<=first2);
+          const lastBase = before2.at(-1);
+          if (k>0 && lastBase && before2.length>=k && /^[)\s]*(?:과|와|의)?\s*(?:대비|비교(?:해도|하면|해|할\s*때)?|보다)\s*$/.test(paragraph.slice(lastBase.end, first2))) {
+            const bases=before2.slice(-k);
+            const currentAmt = before2.length>k ? before2[before2.length-k-1].v : !claim.metric ? undefined : claims.filter(c=>c.company===company && c.metric===claim.metric && c.year===claim.year && c.period===claim.period && !c.growth && c.unit==='억원').at(-1)?.value;
+            if (currentAmt!==undefined) pair={from:bases[grp.findIndex(n=>n.index===pos)].v,to:currentAmt};
+          }
+        }
+        if (pair) {
+          const rate=(pair.to/pair.from-1)*100, expected=growth==='decrease'?-claim.value:claim.value;
+          const decimals=(raw.match(/\.(\d+)/)?.[1] ?? '').length;
+          const tol=0.5*10**-decimals+0.05+100*0.5/Math.min(pair.from,pair.to);
+          const ok=Math.abs(rate-expected)<=tol;
+          const fmt=(n:number)=>n.toLocaleString('ko-KR',{maximumFractionDigits:2});
+          claim.internal={computed:Number(rate.toFixed(2)),from:pair.from,to:pair.to,ok,text:`${fmt(pair.from)}억원 → ${fmt(pair.to)}억원 = ${rate>=0?'+':'−'}${Math.abs(rate).toFixed(2)}%`};
+          if (!claim.metric) {
+            claim.checkType='internal'; claim.actual=Number(rate.toFixed(2));
+            claim.actualText=`${Math.abs(rate).toFixed(2)}% ${rate<0?'감소(−)':'증가(+)'}`;
+            claim.status=ok?'MATCH':'MISMATCH'; if(!ok) claim.mismatchKind=(rate<0)!==(growth==='decrease')?'DIRECTION':'VALUE';
+            claim.message=ok?`기사 안의 두 금액(${claim.internal.text})으로 계산한 증감률과 일치합니다. DART 공시 대조가 아니라 기사 내부 계산 검증입니다.`:`기사 안의 두 금액으로 계산하면 ${claim.internal.text}로 기사 수치(${claim.valueText})와 다릅니다. DART 공시 대조가 아니라 기사 내부 계산 검증입니다.`;
+          }
+        }
+      }
       claims.push(claim);
       if(hit) { lastMetric={...hit,at:0,end:0,year:claim.year,period:claim.period,mode:claim.mode,basis:claim.basis}; lastMetricSeg=segIdx; }
     }

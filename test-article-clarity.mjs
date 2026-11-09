@@ -136,3 +136,29 @@ test('기사: 현금유출 요인으로 쓰인 재고자산·매출채권 금액
   const c=news('대한전선도 상반기 재고자산과 매출채권 증가가 각각 2651억원(63.0%)·622억원(14.8%) 규모의 현금 유출 요인으로 작용했다.');
   assert.ok(c.length>0&&c.every(x=>isReferenceClaim(x)));
 });
+
+test('기사: A에서 B로 X% — 기사 내부 계산 검증(지표가 없어도) 일치/불일치',()=>{
+  const ok=news('대한전선 역시 이 기간 원재료 매입액이 27.5%(1조2873억원→1조6407억원) 뛰었다.').find(x=>x.growth);
+  assert.equal(ok.checkType,'internal');assert.equal(ok.status,'MATCH');assert.equal(ok.internal.ok,true);
+  const bad=news('대한전선 매출채권이 6137억원에서 7056억원으로 30% 늘었다.').find(x=>x.growth);
+  assert.equal(bad.internal.ok,false);
+});
+test('기사: 같은 기간 A에서 B로 — 앞 문장의 비교 기준(지난해 말)을 이어받아 기간 지정',()=>{
+  const c=news('LS전선의 올 2분기 말 연결기준 매출채권(유동)은 1조7939억원으로 지난해 말 1조4770억원 대비 21.5% 증가했다. 대한전선도 같은 기간 매출채권이 6137억원에서 7056억원으로 15% 늘었다.');
+  const t=c.filter(x=>x.company==='대한전선');
+  assert.deepEqual(t.map(x=>[x.value,x.year,x.period,x.comparison?`${x.comparison.year}${x.comparison.period}`:'']),[[6137,2025,'annual',''],[7056,2026,'half',''],[15,2026,'half','2025annual']]);
+});
+test('기사: 같은 문장에서 ‘대한전선도 같은 기간 A에서 B로’는 앞 절의 지표(매입채무)를 이어받음',()=>{
+  const c=news('LS전선의 2분기 말 연결기준 매입채무는 6507억원으로 지난해 말 7184억원보다 9.4% 감소했고, 대한전선도 같은 기간 3922억원에서 3356억원으로 14.4% 줄었다.');
+  assert.deepEqual(c.filter(x=>x.company==='대한전선').map(x=>[x.metric,x.value]),[['매입채무',3922],['매입채무',3356],['매입채무',14.4]]);
+  assert.equal(c.find(x=>x.company==='LS전선'&&x.growth).internal.ok,true);
+});
+test('기사: 전기동 가격 증가율은 기사 내부 계산 대상이 아님(비교 기준 금액이 없음)',()=>{
+  const c=news('LS전선에 따르면, 올 2분기 말 기준 전기동 매입(수입)가격은 톤(t)당 2000만원으로 전년 동기 대비 45.2% 증가했다.');
+  assert.ok(c.every(x=>!x.internal));
+});
+test('기사: 선수금·계약부채 합산은 한 계정으로 대조하지 않고 계약부채 단독만 대조',()=>{
+  const a=news('대한전선의 선수금·계약부채도 같은 기간 1913억원에서 2473억원으로 늘었다.');assert.ok(a.every(x=>!x.metric));
+  const b=news('LS전선의 경우 2분기 말 연결기준 계약부채가 약 9328억원으로 지난해 말 9119억원보다 소폭 증가했다.');
+  assert.deepEqual(b.map(x=>[x.metric,x.value,x.year,x.period]),[['계약부채',9328,2026,'half'],['계약부채',9119,2025,'annual']]);
+});

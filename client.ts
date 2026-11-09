@@ -185,6 +185,7 @@ const DIRECT_ACCOUNT_SPECS: Record<string, { sj: string[]; names: string[]; ids?
   단기금융상품: { sj: ["BS"], names: ["단기금융상품", "단기투자자산", "단기예치금", "단기금융자산"], ids: [/ShortTermDepositsNotClassifiedAsCashEquivalents/i] },
   매출채권: { sj: ["BS"], names: ["매출채권", "매출채권및기타채권", "매출채권및기타유동채권", "유동매출채권"], ids: [/TradeAndOtherCurrentReceivables/i], exclude: [/대손충당금|손상차손누계|기대신용손실충당금/] },
   재고자산: { sj: ["BS"], names: ["재고자산", "유동재고자산", "재고자산합계"], ids: [/^ifrs-full_Inventories$/i] },
+  계약부채: { sj: ["BS"], names: ["계약부채", "유동계약부채", "계약부채(유동)"], ids: [/ContractLiabilit/i], exclude: [/비유동/] },
   매입채무: { sj: ["BS"], names: ["매입채무", "매입채무및기타채무", "매입채무및기타유동채무", "유동매입채무", "매입채무합계"], ids: [/TradeAndOtherCurrentPayables/i], exclude: [/미지급금|충당부채|리스부채/] },
   단기차입금: { sj: ["BS"], names: ["단기차입금", "단기차입금및회사채", "단기대출금", "단기금융부채"], ids: [/ShorttermBorrowings|CurrentFinancialInstitutionBorrowings/i], exclude: [/리스부채/] },
   유동성장기부채: { sj: ["BS"], names: ["유동성장기부채", "유동성장기차입금", "유동성사채", "유동성장기사채", "비유동차입금의유동성대체부분", "유동성장기부채및사채"], ids: [/CurrentPortionOfLongtermBorrowings|CurrentPortionOfLongtermFinancialLiabilities/i], exclude: [/리스부채/] },

@@ -34,6 +34,10 @@ export type FactClaim = {
   periodNote?: string;
   /** 연도·기간이 이 문장(또는 화면 입력)에서 확정됐는지. false면 앞 문맥에서 이어받은 값 */
   periodExplicit?: boolean;
+  /** 판정 방식: DART 공시 대조 / 기사 안의 두 금액으로 증감률을 계산한 내부 검증 */
+  checkType?: "dart" | "internal";
+  /** 기사 내부 계산 근거(‘A→B 금액으로 계산한 증감률’) */
+  internal?: { computed: number; from: number; to: number; ok: boolean; text: string };
   mismatchKind?: MismatchKind;
   /** 기사값 − 공시값 (같은 단위) */
   difference?: number;
@@ -51,6 +55,7 @@ export type FactCheckResult = {
 };
 
 /** 공시와 직접 대조할 수 없는 수치(지표 미식별, 구성비·변동액·퍼센트포인트)는 판정이 아니라 ‘참고 수치’로 분류합니다. */
-export function isReferenceClaim(c: Pick<FactClaim, "metric" | "message">): boolean {
+export function isReferenceClaim(c: Pick<FactClaim, "metric" | "message" | "checkType">): boolean {
+  if (c.checkType === "internal") return false;
   return !c.metric || /증감률·구성비의 기준|운전자금 변동액|증감액\(변동폭\)|퍼센트포인트 변동/.test(c.message);
 }

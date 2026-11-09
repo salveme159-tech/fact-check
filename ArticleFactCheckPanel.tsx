@@ -240,7 +240,7 @@ export default function ArticleFactCheckPanel({ apiKey }: { apiKey: string }) {
                       <td className="p-2 text-slate-600">{c.basisLabel?.includes("확인 필요") ? <span className="text-amber-700">기사 기준 확인 필요</span> : basisText(c)}</td>
                       <td className="p-2"><b className={c.value < 0 ? "text-rose-700" : ""}>{c.valueText ?? c.text}</b> <SignBadge claim={c} /></td>
                       <td className="p-2"><b className={c.actual !== null && c.actual < 0 && !c.growth ? "text-rose-700" : ""}>{c.actualText}</b></td>
-                      <td className="p-2"><span className={`rounded px-2 py-1 font-bold ${STATUS_COLOR[c.status]}`}>{STATUS_LABEL[c.status]}</span>{c.mismatchKind && <div className="mt-1 text-[10px] font-bold text-rose-700">{KIND_LABEL[c.mismatchKind]}</div>}</td>
+                      <td className="p-2"><span className={`rounded px-2 py-1 font-bold ${STATUS_COLOR[c.status]}`}>{STATUS_LABEL[c.status]}</span>{c.mismatchKind && <div className="mt-1 text-[10px] font-bold text-rose-700">{KIND_LABEL[c.mismatchKind]}</div>}{c.checkType === "internal" && <div className="mt-1 text-[10px] font-bold text-sky-700">기사 내부 계산</div>}</td>
                       <td className="max-w-[320px] p-2 text-[11px] leading-5 text-slate-600">{c.status === "MATCH" ? "" : c.message}</td>
                     </tr>
                   ))}
@@ -269,7 +269,7 @@ export default function ArticleFactCheckPanel({ apiKey }: { apiKey: string }) {
                         <dd className="mt-1 text-[11px] text-slate-500">원문 표기: {c.text}{c.approximate ? " (‘약’ 등 근사 표기)" : ""}</dd>
                       </div>
                       <div className="rounded-xl border p-3">
-                        <dt className="text-[11px] font-bold text-slate-500">DART 공시값</dt>
+                        <dt className="text-[11px] font-bold text-slate-500">{c.checkType === "internal" ? "기사 내부 계산값 (DART 대조 아님)" : "DART 공시값"}</dt>
                         <dd className="mt-1"><strong className={`text-lg ${c.actual !== null && c.actual < 0 && !c.growth ? "text-rose-700" : ""}`}>{c.actualText}</strong></dd>
                         {c.difference !== undefined && c.status === "MISMATCH" && <dd className="mt-1 text-[11px] text-slate-500">차이(기사−공시): {c.difference.toLocaleString("ko-KR", { maximumFractionDigits: 4 })}{c.unit}</dd>}
                       </div>
@@ -280,6 +280,7 @@ export default function ArticleFactCheckPanel({ apiKey }: { apiKey: string }) {
                       {c.comparison && <div><dt className="inline font-bold">증감 비교 기간 </dt><dd className="inline">{c.comparison.year}년 {PERIOD_NAME[c.comparison.period]}</dd></div>}
                     </dl>
                     <p className="text-xs leading-5 text-slate-700">{c.message}</p>
+                    {c.internal && <p className={`rounded-lg p-2 text-xs leading-5 ${c.internal.ok ? "bg-sky-50 text-sky-900" : "bg-rose-50 text-rose-900"}`}><b>기사 내부 계산</b> {c.internal.text} → 기사 수치와 {c.internal.ok ? "일치 ✓" : "불일치 ✗"}</p>}
                     {c.sourceUrl && <a href={c.sourceUrl} target="_blank" rel="noreferrer" className="block break-words text-xs leading-5 text-emerald-700 underline">{c.sourceLabel} · 공시 원문 ↗</a>}
                   </article>
                 ))}

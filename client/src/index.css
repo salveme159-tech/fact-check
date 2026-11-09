@@ -1,5 +1,0 @@
-@import "tailwindcss";
-
-:root { color-scheme: light; }
-body { margin: 0; background: #f6f7f9; color: #0f172a; font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Pretendard", "Noto Sans KR", "Malgun Gothic", sans-serif; }
-mark { background: transparent; color: inherit; }

@@ -1,0 +1,13 @@
+# Render.com Blueprint: 기사 팩트 체크 서버와 화면을 한 곳에서 서비스합니다(같은 주소라 CORS 설정 불필요).
+services:
+  - type: web
+    name: dart-navigator-factcheck
+    runtime: docker
+    plan: free
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      # 사용자가 화면에 입력한 키를 쓰므로 서버 키는 선택 사항입니다.
+      - key: OPENDART_API_KEY
+        sync: false

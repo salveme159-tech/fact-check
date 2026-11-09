@@ -5,6 +5,7 @@ import fs from "node:fs";
 import { createServer } from "http";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
 import { appRouter } from "../routers";
+import { ENGINE_VERSION } from "../../shared/articleFactCheck";
 import { createContext } from "./context";
 
 async function startServer() {
@@ -28,7 +29,7 @@ async function startServer() {
   });
   app.use("/api/trpc", (_req, res, next) => { res.set("Cache-Control", "private, no-store, max-age=0"); res.set("Pragma", "no-cache"); next(); });
   app.use(express.json({ limit: "2mb" }));
-  app.get("/api/health", (_req, res) => res.json({ status: "ok" }));
+  app.get("/api/health", (_req, res) => res.json({ status: "ok", engineVersion: ENGINE_VERSION }));
   app.use("/api/trpc", createExpressMiddleware({ router: appRouter, createContext }));
 
   // 운영: 빌드된 정적 파일을 같은 서버에서 제공합니다(dist/public).

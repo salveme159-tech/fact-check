@@ -1,5 +1,5 @@
 import { TRPCError } from '@trpc/server';
-import { isReferenceClaim } from '../../shared/articleFactCheck';
+import { isReferenceClaim, ENGINE_VERSION } from '../../shared/articleFactCheck';
 import type { FactCheckInput, FactCheckResult } from '../../shared/articleFactCheck';
 import { extractArticleClaims, applyActual, parseContractAmount, resolveArticleInput, extractDateMentions } from './articleClaims';
 import { financialFactSource, articleCompanyNames, recentFilingsDart, articleDisclosureEntries, articlePeriodDisclosure } from './client';
@@ -97,5 +97,5 @@ export async function factCheckArticle(input: FactCheckInput, requestKey?: strin
   for(const c of claims.filter(x=>!isReferenceClaim(x))){const key=c.company||'기업 미확인';const row=companyMap.get(key)??{name:key,total:0,matched:0,mismatched:0,unverified:0};row.total++;if(c.status==='MATCH')row.matched++;else if(c.status==='MISMATCH')row.mismatched++;else row.unverified++;companyMap.set(key,row);}
   // 기사에 등장했지만 수치가 없는 기업도 목록에 남겨 누락을 눈으로 확인할 수 있게 합니다.
   for(const n of names)if(!companyMap.has(n))companyMap.set(n,{name:n,total:0,matched:0,mismatched:0,unverified:0});
-  return {article:input.article,claims,companies:[...companyMap.values()],dates:extractDateMentions(input.article,resolved.articleDate),checkedAt:new Date().toISOString(),summary:{matched:claims.filter(c=>!isReferenceClaim(c)&&c.status==='MATCH').length,mismatched:claims.filter(c=>!isReferenceClaim(c)&&c.status==='MISMATCH').length,unverified:claims.filter(c=>!isReferenceClaim(c)&&c.status==='UNVERIFIED').length,reference:claims.filter(isReferenceClaim).length},contractCandidates,warnings};
+  return {article:input.article,claims,companies:[...companyMap.values()],dates:extractDateMentions(input.article,resolved.articleDate),checkedAt:new Date().toISOString(),engineVersion:ENGINE_VERSION,summary:{matched:claims.filter(c=>!isReferenceClaim(c)&&c.status==='MATCH').length,mismatched:claims.filter(c=>!isReferenceClaim(c)&&c.status==='MISMATCH').length,unverified:claims.filter(c=>!isReferenceClaim(c)&&c.status==='UNVERIFIED').length,reference:claims.filter(isReferenceClaim).length},contractCandidates,warnings};
 }

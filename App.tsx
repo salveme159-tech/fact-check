@@ -1,5 +1,6 @@
 import { useState } from "react";
 import ArticleFactCheckPanel from "./components/ArticleFactCheckPanel";
+import { ENGINE_VERSION } from "../../shared/articleFactCheck";
 import { apiUrl, apiBaseUrl } from "./lib/apiBase";
 
 const KEY_STORAGE = "DART_API_KEY_V6";
@@ -34,7 +35,7 @@ export default function App() {
     <main className="mx-auto max-w-6xl space-y-6 px-4 py-8">
       <header>
         <h1 className="text-3xl font-extrabold tracking-tight">DART 기사 팩트 체크</h1>
-        <p className="mt-2 text-sm text-slate-500">기사 속 기업명·기간·수치·부호를 하나씩 분리해 DART 공시값과 대조합니다.</p>
+        <p className="mt-2 text-sm text-slate-500">기사 속 기업명·기간·수치·부호를 하나씩 분리해 DART 공시값과 대조합니다. <span className="text-slate-400">화면 버전 {ENGINE_VERSION}</span></p>
       </header>
       <section className="rounded-2xl border bg-white p-5">
         <label className="text-sm font-bold" htmlFor="dart-key">OpenDART 인증키</label>

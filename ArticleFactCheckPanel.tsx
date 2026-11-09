@@ -1,6 +1,6 @@
 import React, { useMemo, useRef, useState } from "react";
 import { apiUrl, apiBaseUrl } from "@/lib/apiBase";
-import { isReferenceClaim } from "../../../shared/articleFactCheck";
+import { isReferenceClaim, ENGINE_VERSION } from "../../../shared/articleFactCheck";
 import type { FactClaim, FactCheckInput, FactCheckResult, MismatchKind } from "../../../shared/articleFactCheck";
 
 const STATUS_LABEL = { MATCH: "일치", MISMATCH: "불일치", UNVERIFIED: "확인 필요" } as const;
@@ -169,11 +169,16 @@ export default function ArticleFactCheckPanel({ apiKey }: { apiKey: string }) {
       </div>
 
       {result && <>
+        {result.engineVersion !== ENGINE_VERSION && (
+          <p role="alert" className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm font-bold text-amber-900">
+            서버가 구버전입니다(서버 {result.engineVersion ?? "버전 표시 없음"} / 화면 {ENGINE_VERSION}). 최신 서버를 다시 배포하고 서버가 재시작된 뒤에 확인해야 수정 사항이 반영됩니다.
+          </p>
+        )}
         <div role="status" className="flex flex-wrap gap-3 text-sm font-bold">
           <span className="rounded-xl bg-rose-50 px-4 py-3 text-rose-700">불일치 {result.summary.mismatched}건</span>
           <span className="rounded-xl bg-emerald-50 px-4 py-3 text-emerald-700">일치 {result.summary.matched}건</span>
           <span className="rounded-xl bg-amber-50 px-4 py-3 text-amber-800">확인 필요 {result.summary.unverified}건</span>
-          <span className="self-center text-xs font-normal text-slate-500">{new Date(result.checkedAt).toLocaleString("ko-KR")} 확인</span>
+          <span className="self-center text-xs font-normal text-slate-500">{new Date(result.checkedAt).toLocaleString("ko-KR")} 확인 · 엔진 {result.engineVersion ?? "구버전"}</span>
         </div>
 
         {result.contractCandidates.length > 0 && (

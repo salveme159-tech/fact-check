@@ -138,3 +138,8 @@ test('결과에 기업별 요약과 날짜 해석이 포함',async()=>{
   assert.ok(r.dates.some(d=>d.text==='2025년'&&d.resolved==='2025년'));assert.ok(r.dates.some(d=>d.text==='지난해'&&d.resolved==='2025년'));
   assert.equal(r.claims[0].companySource,'sentence');
 });
+test('결과에 엔진 버전이 포함되어 구버전 서버를 화면에서 구별',async()=>{
+  const {ENGINE_VERSION}=await import('../shared/articleFactCheck.ts');
+  const r=await factCheckArticle({...baseInput,article:'대한전선 2025년 연결 매출액은 2,000억원이다. 최근 6개월 새 늘었다.'},fakeKey);
+  assert.ok(ENGINE_VERSION&&ENGINE_VERSION.length>5);assert.equal(r.engineVersion,ENGINE_VERSION);assert.ok(!r.claims.some(c=>c.text.includes('6개')));
+});

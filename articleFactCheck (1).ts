@@ -1,3 +1,6 @@
+/** 팩트 체크 엔진 버전. 화면과 서버가 같은 버전인지 확인하는 데 씁니다(구버전 서버가 떠 있으면 수정 사항이 반영되지 않음). */
+export const ENGINE_VERSION = "2026-11-09.r4";
+
 export type FactCheckInput = {
   article: string;
   company?: string;
@@ -46,7 +49,7 @@ export type FactClaim = {
 export type DateMention = { start: number; end: number; text: string; resolved: string };
 export type CompanySummary = { name: string; total: number; matched: number; mismatched: number; unverified: number };
 export type FactCheckResult = {
-  article: string; claims: FactClaim[]; checkedAt: string;
+  article: string; claims: FactClaim[]; checkedAt: string; engineVersion?: string;
   summary: { matched: number; mismatched: number; unverified: number; reference: number };
   companies: CompanySummary[];
   dates: DateMention[];
